@@ -6,7 +6,7 @@ import {
   leftParentheses,
   rightParentheses,
   rightAbs,
-  leftAbs
+  leftAbs,
 } from "./regularDefine";
 
 const amendmentStrategy = {
@@ -19,10 +19,23 @@ const amendmentStrategy = {
   sin: trigonometryStrategy,
   cos: trigonometryStrategy,
   tan: trigonometryStrategy,
-  cot: trigonometryStrategy
+  cot: trigonometryStrategy,
+  "|": absStrategy,
 };
 
-function xVariableStrategy(tokenList, index) {
+function absStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
+  if (tokenObj._absCount) {
+    tokenList[index] = "^" + tokenList[index];
+    tokenObj._absCount--;
+  } else {
+    tokenList[index] = "$" + tokenList[index];
+    tokenObj.$absCount--;
+  }
+}
+
+function xVariableStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
   if (index > 0) {
     if (
       isNumber(tokenList[index - 1]) ||
@@ -43,7 +56,8 @@ function xVariableStrategy(tokenList, index) {
   }
 }
 
-function logarithmStrategy(tokenList, index) {
+function logarithmStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
   if (index > 0) {
     if (isNumber(tokenList[index - 1])) {
       tokenList[index - 1] = `${tokenList[index - 1]}*`;
@@ -51,7 +65,8 @@ function logarithmStrategy(tokenList, index) {
   }
 }
 
-function trigonometryStrategy(tokenList, index) {
+function trigonometryStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
   if (index > 0) {
     if (isNumber(tokenList[index - 1])) {
       tokenList[index - 1] = `${tokenList[index - 1]}*`;
@@ -59,9 +74,23 @@ function trigonometryStrategy(tokenList, index) {
   }
 }
 
-function leftParenthesesStrategy() {}
+function leftParenthesesStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
+  if (index > 0) {
+    if (isNumber(tokenList[index - 1])) {
+      tokenList[index - 1] = `${tokenList[index - 1]}*`;
+    }
+  }
+}
 
-function rightParenthesesStrategy() {}
+function rightParenthesesStrategy(tokenObj, index) {
+  let tokenList = tokenObj.results;
+  if (index > 0) {
+    if (isNumber(tokenList[index + 1])) {
+      tokenList[index + 1] = `*${tokenList[index + 1]}`;
+    }
+  }
+}
 
 function isNumber(token) {
   return (

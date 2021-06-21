@@ -4,7 +4,7 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.FT = {}));
 }(this, (function (exports) { 'use strict';
 
-  const tokenRegular = /^(\(|[-+]|(\d*\.\d+)|(\d+\.\d*)|\d+|[*\/]|\)|\^|(ln|lg|log)|(cos|sin|tan|cot)|x|\|)/;
+  const tokenRegular = /^(\(|[-+]|(\d*\.\d+)|(\d+\.\d*)|\d+|[*\/]|\)|\^\||\$\||\^|(ln|lg|log)|(cos|sin|tan|cot)|x|\|)/;
   const signNumber = /^[+-]+\d+$/;
   const number = /^\d+$/;
   const float = /((^\d*\.\d+$)|(^\d+\.\d*$))/;
@@ -85,10 +85,23 @@
     sin: trigonometryStrategy,
     cos: trigonometryStrategy,
     tan: trigonometryStrategy,
-    cot: trigonometryStrategy
+    cot: trigonometryStrategy,
+    "|": absStrategy,
   };
 
-  function xVariableStrategy(tokenList, index) {
+  function absStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
+    if (tokenObj._absCount) {
+      tokenList[index] = "^" + tokenList[index];
+      tokenObj._absCount--;
+    } else {
+      tokenList[index] = "$" + tokenList[index];
+      tokenObj.$absCount--;
+    }
+  }
+
+  function xVariableStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
     if (index > 0) {
       if (
         isNumber(tokenList[index - 1]) ||
@@ -109,7 +122,8 @@
     }
   }
 
-  function logarithmStrategy(tokenList, index) {
+  function logarithmStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
     if (index > 0) {
       if (isNumber(tokenList[index - 1])) {
         tokenList[index - 1] = `${tokenList[index - 1]}*`;
@@ -117,7 +131,8 @@
     }
   }
 
-  function trigonometryStrategy(tokenList, index) {
+  function trigonometryStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
     if (index > 0) {
       if (isNumber(tokenList[index - 1])) {
         tokenList[index - 1] = `${tokenList[index - 1]}*`;
@@ -125,9 +140,23 @@
     }
   }
 
-  function leftParenthesesStrategy() {}
+  function leftParenthesesStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
+    if (index > 0) {
+      if (isNumber(tokenList[index - 1])) {
+        tokenList[index - 1] = `${tokenList[index - 1]}*`;
+      }
+    }
+  }
 
-  function rightParenthesesStrategy() {}
+  function rightParenthesesStrategy(tokenObj, index) {
+    let tokenList = tokenObj.results;
+    if (index > 0) {
+      if (isNumber(tokenList[index + 1])) {
+        tokenList[index + 1] = `*${tokenList[index + 1]}`;
+      }
+    }
+  }
 
   function isNumber(token) {
     return (
@@ -154,35 +183,48 @@
     return rightAbs.test(token);
   }
 
+  function checkTokenParse(isContinue,string){
+    if (!isContinue && string) throw "illegal expression";
+  }
+
+
+  function checkAbsCount(absCount){
+    if(absCount%2 !== 0) throw "abs must come with partners"
+  }
+
+  function calculateAbs(tokenObj,absCount){
+    checkAbsCount(absCount);
+    tokenObj._absCount = tokenObj.$absCount = absCount/2;
+  }
+
   function tokenPaser(string) {
-    let results = [];
+    let tokenObj = {
+      results:[],
+      _absCount:0,
+      $absCount:0
+    };
     let isContinue = false;
-    let absEnter = false;
+    let absCount = 0;
     while (string) {
       isContinue = false;
       string = string.replace(tokenRegular, (match, $1) => {
         isContinue = true;
-        if (!absEnter && match === "|") {
-          absEnter = true;
-          match = "^|";
-        }
-        if (absEnter && match === "|") {
-          absEnter = false;
-          match = "$|";
-        }
-        results.push(match);
+        if (match === "|") absCount++;
+        tokenObj.results.push(match);
         return "";
       });
-      if (!isContinue && string) throw "illegal expression";
+      checkTokenParse(isContinue,string);
     }
-    return buildChild(amendmentToken(results));
+    calculateAbs(tokenObj,absCount);
+    return buildChild(amendmentToken(tokenObj));
   }
 
-  function amendmentToken(tokenList) {
+  function amendmentToken(tokenObj) {
+    let tokenList = tokenObj.results;
     for (let i = 0; i < tokenList.length; i++) {
       let token = tokenList[i];
       if (amendmentStrategy[token]) {
-        amendmentStrategy[token](tokenList, i);
+        amendmentStrategy[token](tokenObj, i);
       }
     }
     return tokenList;
@@ -214,6 +256,7 @@
         let leftAbsSign = 1;
         let rightAbsSign = 0;
         while (token) {
+          if (token === "^|") leftAbsSign++;
           if (token === "$|") rightAbsSign++;
           if (rightAbsSign === leftAbsSign) break;
           childExpression += token;

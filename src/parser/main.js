@@ -1,36 +1,37 @@
 import { tokenRegular } from "./regularDefine";
 import handler from "./handler";
 import amendmentStrategy from "./amendmentStrategy";
+import {checkTokenParse} from '../util/check'
+import {calculateAbs} from '../util/calculate'
 
 function tokenPaser(string) {
-  let results = [];
+  let tokenObj = {
+    results:[],
+    _absCount:0,
+    $absCount:0
+  };
   let isContinue = false;
-  let absEnter = false;
+  let absCount = 0
   while (string) {
     isContinue = false;
     string = string.replace(tokenRegular, (match, $1) => {
       isContinue = true;
-      if (!absEnter && match === "|") {
-        absEnter = true;
-        match = "^|";
-      }
-      if (absEnter && match === "|") {
-        absEnter = false;
-        match = "$|";
-      }
-      results.push(match);
+      if (match === "|") absCount++;
+      tokenObj.results.push(match);
       return "";
     });
-    if (!isContinue && string) throw "illegal expression";
+    checkTokenParse(isContinue,string)
   }
-  return buildChild(amendmentToken(results));
+  calculateAbs(tokenObj,absCount)
+  return buildChild(amendmentToken(tokenObj));
 }
 
-function amendmentToken(tokenList) {
+function amendmentToken(tokenObj) {
+  let tokenList = tokenObj.results
   for (let i = 0; i < tokenList.length; i++) {
     let token = tokenList[i];
     if (amendmentStrategy[token]) {
-      amendmentStrategy[token](tokenList, i);
+      amendmentStrategy[token](tokenObj, i);
     }
   }
   return tokenList;
@@ -62,6 +63,7 @@ function buildChild(tokenList) {
       let leftAbsSign = 1;
       let rightAbsSign = 0;
       while (token) {
+        if (token === "^|") leftAbsSign++;
         if (token === "$|") rightAbsSign++;
         if (rightAbsSign === leftAbsSign) break;
         childExpression += token;
@@ -111,4 +113,4 @@ function expressionParser(string) {
   return expressionGenerator(tokenPaser(string));
 }
 
-export { expressionGenerator,expressionParser };
+export { expressionGenerator, expressionParser };

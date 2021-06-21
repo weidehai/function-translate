@@ -1,4 +1,4 @@
-const tokenRegular = /^(\(|[-+]|(\d*\.\d+)|(\d+\.\d*)|\d+|[*\/]|\)|\^|(ln|lg|log)|(cos|sin|tan|cot)|x|\|)/;
+const tokenRegular = /^(\(|[-+]|(\d*\.\d+)|(\d+\.\d*)|\d+|[*\/]|\)|\^\||\$\||\^|(ln|lg|log)|(cos|sin|tan|cot)|x|\|)/;
 
 const xVariable = /^x$/
 const signNumber = /^[+-]+\d+$/
